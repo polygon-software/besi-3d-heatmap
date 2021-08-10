@@ -20,19 +20,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js 12.x
         uses: actions/setup-node@v1
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 12.x
 
-      - name: Patch version
-        run: npm run patch
+      - name: Cache node modules
+        uses: actions/cache@v1
+        with:
+          path: node_modules
+          key: ${{ runner.OS }}-build-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-build-${{ env.cache-name }}-
+            ${{ runner.OS }}-build-
+            ${{ runner.OS }}-
 
-      - name: Setup environment
+      - name: Install dependencies
         run: npm ci
 
+      - name: Update Version Number
+        id: update_version_number
+        uses: polygon-software/npm-version-date@master
+        with:
+          schema: V.yyMM.P
+          V: '1'
+          increase-patch: true
+
+      - name: Build application
+        run: npm run build
+
+      - name: Stage new / changed files
+        run: git add .
+
       - name: Commit new version number
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: polygon-software/action-commit@master
         with:
           commit_message: New Build for development environmet
           commit_options: '--no-verify --signoff'
@@ -51,3 +72,16 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: dist
+
+  create-release:
+    name: Auto-Release
+    needs: build-application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Auto-Release
+        uses: polygon-software/action-release@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: latest
+          prerelease: false
+          title: "${{ needs.increment-version.outputs.version }}"
