@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-application:
-
+    name: Build Application
     runs-on: ubuntu-latest
 
     strategy:
