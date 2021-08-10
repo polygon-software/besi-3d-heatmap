@@ -1,0 +1,53 @@
+# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Deploy Website
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Patch version
+        run: npm run patch
+
+      - name: Setup environment
+        run: npm ci
+
+      - name: Commit new version number
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: New Build for development environmet
+          commit_options: '--no-verify --signoff'
+          file_pattern: .
+          commit_user_name: Bot (Autocommit Actions)
+          commit_user_email: actions@github.com
+          commit_author: Github Action <actions@github.com>
+          push_options: '--force'
+
+      - name: Build website
+        run: npm run build
+
+      # Deploy to Github Pages
+      - name: Deploy Website to Github Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist
